@@ -7,10 +7,10 @@ import sqlite3
 import os
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'secret!'
-socketio = SocketIO(app, cors_allowed_origins="*")
+app.config['SECRET_KEY'] = 'secret_chat_key_123'
+# logger=True helps you see connection issues in the Render logs
+socketio = SocketIO(app, cors_allowed_origins="*", logger=True, engineio_logger=True)
 
-# This function creates the database file AND the table
 def init_db():
     conn = sqlite3.connect('chat.db')
     cursor = conn.cursor()
@@ -19,13 +19,10 @@ def init_db():
                        username TEXT, message TEXT, color TEXT)''')
     conn.commit()
     conn.close()
-    print("Database initialized!")
 
 @app.route('/')
 def index():
-    # We call it here too, just in case!
-    init_db()
-    
+    init_db() # Ensures table exists every time someone visits
     conn = sqlite3.connect('chat.db')
     cursor = conn.cursor()
     try:
@@ -48,5 +45,4 @@ def handle_message(data):
 
 if __name__ == '__main__':
     init_db()
-    # On Render, the port is usually 10000, but SocketIO handles it
     socketio.run(app, debug=False)
