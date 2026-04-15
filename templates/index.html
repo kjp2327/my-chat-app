@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Cool Chat Room</title>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <style>
+        body { background: #2c2f33; color: white; font-family: sans-serif; display: flex; flex-direction: column; align-items: center; }
+        #chat-window { width: 500px; height: 400px; background: #23272a; border-radius: 10px; padding: 15px; overflow-y: auto; border: 1px solid #7289da; margin-top: 10px;}
+        .msg-img { max-width: 250px; border-radius: 10px; display: block; margin-top: 5px; border: 2px solid #7289da; }
+        #input-area { display: flex; gap: 10px; width: 530px; margin-top: 10px; }
+        input { padding: 10px; border-radius: 5px; border: none; }
+        button { padding: 10px; border-radius: 5px; border: none; cursor: pointer; background: #7289da; color: white; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <h2>🔥 Global Chat</h2>
+    
+    <div>
+        <input type="text" id="username" placeholder="Username" value="User">
+        <input type="color" id="user-color" value="#00ff00">
+    </div>
+
+    <div id="chat-window">
+        {% for msg in history %}
+            <p><span style="color: {{ msg[2] }}"><strong>{{ msg[0] }}:</strong></span> {{ msg[1] | safe }}</p>
+        {% endfor %}
+    </div>
+
+    <div id="input-area">
+        <input type="text" id="message" placeholder="Type a message or 'gif:funny'..." style="flex-grow: 1;">
+        <button onclick="sendMessage()">SEND</button>
+    </div>
+
+    <script>
+        // Force connection to local server
+        const socket = io("http://127.0.0.1:5000");
+
+        async function sendMessage() {
+            const user = document.getElementById('username').value;
+            const input = document.getElementById('message').value;
+            const color = document.getElementById('user-color').value;
+
+            if (!input) return;
+
+            // AUTOMATIC GIF LOGIC: If you type "gif:keyword", it sends a GIF automatically
+            if (input.startsWith('gif:')) {
+                const keyword = input.replace('gif:', '');
+                const response = await fetch(`https://tenor.googleapis.com/v2/search?q=${keyword}&key=LIVDSRZULEUB&limit=1`);
+                const data = await response.json();
+                if (data.results.length > 0) {
+                    const gifUrl = data.results[0].media_formats.gif.url;
+                    socket.emit('send_message', { 
+                        username: user, 
+                        message: `<img src="${gifUrl}" class="msg-img">`, 
+                        color: color 
+                    });
+                }
+            } else {
+                // Regular Text Message
+                socket.emit('send_message', { username: user, message: input, color: color });
+            }
+            
+            document.getElementById('message').value = '';
+        }
+
+        socket.on('receive_message', function(data) {
+            const chatWindow = document.getElementById('chat-window');
+            const messageElement = document.createElement('div');
+            messageElement.innerHTML = `<p><span style="color: ${data.color}"><strong>${data.username}:</strong></span> ${data.message}</p>`;
+            chatWindow.appendChild(messageElement);
+            chatWindow.scrollTop = chatWindow.scrollHeight;
+        });
+
+        // Allow "Enter" key to send
+        document.getElementById('message').addEventListener("keypress", function(event) {
+            if (event.key === "Enter") sendMessage();
+        });
+    </script>
+</body>
+</html>
